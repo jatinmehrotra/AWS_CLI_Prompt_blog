@@ -1,304 +1,131 @@
-<blockquote></blockquote>
-## Serverless Framework とは？
+<blockquote>
+AWS and its ecosystem of service is HUGE and ever-growing, keeping track of each service and its usage is easy/manageable when it comes to AWS Console, but it takes a toll on users to use the same/new services on `aws-cli` especially remembering the nitty gritty of each service's command line usage.
 
-Serverless Framework とは Function-as-a-service の開発やデプロイを簡単に実行することができるオープンソースのツールです。
 
-関数を作成するのに必要なコードとインフラを管理しています。
+This article talks about one of the most anticipated and awaited features which was announced in the release of AWS CLI version 2 (v2) on 10 Feb,2020
 
-3 つの大事なコンポーネントがあります。
+</blockquote>
 
-- 関数
-  - プログラムのコードです。たとえばユーザー情報をデータベースに保存します。
-- イベント
-  - AWS Lambda Function のトリガーです。たとえば AWS API Gateway の HTTP リクエストなどです。
-- リソース
-  - インフラストラクチャコンポーネントです。たとえばユーザーデータを保存する AWS の DynamoDB です。
+## What is AWS CLI Auto Prompt Feature?
 
-## Express フレームワークとは？
+AWS CLI v2 was based on a theme which wanted to help users by adding bunch of interactive features. Version 2 automatically prompt us commands, parameters and resources whenever we run an `aws command`.
+It cannot get better as to how *simple, easy and intuitive* it makes for a user by serving everything on this auto-prompt platter.
 
-Express はとても人気の Node のフレームワークです。NodeJS のコードを簡単にかくことができます。
+![introduction](https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/07/Screenshot_2021-07-07_at_11_48_39_PM-compressed-scaled.jpg)
 
-GET や POST など、の ROUTE をかくのがかんたんになります
+### Prerequisite
 
-Handlebars などの View Rendering エンジンや Middleware との統合がかんたんにできます。
+- Auto feature is only available in **AWS CLI version 2**. To update [check the docs](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html).
 
-Rendering と configuration のためにテンプレート engine(たとえば handlebars や ejs)と env variable をセットすることができます
 
-## さいしょに
 
-NodeJS と Serverless Framework をインストールするひつようがあります。
+- [sourcecode language="bash"]
+  
+   aws --version  #to check your cli version
+  
+  [/sourcecode]
 
-awscli を configure することがたいせつです
+## How to configure Auto-Prompt?
 
-エクスプレスフレームワークのきそちしきことがたいせつです
+- Auto Prompt has 2 modes which can be configured by 3 ways.
+  
+  - **Default enable/disable**: Users can configure, to permanently enable/disable auto-prompt feature by saving this particular setting in their config file under default profile.
+  
+      Example for config file.
 
-## API について
+      [sourcecode language="text"]
 
-<img class="aligncenter size-full wp-image-742037" src="https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/06/architecture.png" alt="" width="781" height="345" />
+      [profile default]
+      region = ap-northeast-1
+      output = json
+      role_arn = arn:aws:iam::xxxxxxx:role/cm-xxxxx.xxxx
+      mfa_serial = arn:aws:iam::xxxxxxx:mfa/cm-xxxxxx.xxxxx
+      cli_auto_prompt = on
+      source_profile = gateway
 
-- この REST API の Backend はサーバーレスです
-- ユーザー ID を保存するために CRUD(Create,Read,Update,Delete)のオペレーションをします
-- Lambda と API Gateway と DynamoDB は Serverless Framework によってデプロイされます
-- API のコードは[GitHub](https://github.com/jatinmehrotra/Serverless_Express_API)にあります
+      [/sourcecode]
+       
+       
+ - **Environment variable**: Note this overides any value loaded from config file
+  
 
-## Express の作成
+     [sourcecode language="bash"]
 
-プロジェクのために Directory をつくって、Express Generator を使用して Application の Skeleton をつくります。
+     export aws_cli_auto_prompt=on
 
-[sourcecode language="text"]
-mkdir serverless_blog;cd serverless_blog
-npx express-generator --view=hbs
-npm install ; npm i serverless-http aws-sdk
-[/sourcecode]
+     [/sourcecode]
 
-- `app.js`のコード
 
-[sourcecode language="text"]
-const serverless = require('serverless-http');
-app.use('/', indexRouter);
-app.use('/users',usersRouter);
+ - **one time use**: Note this overrides any value from config file and environment variable.For a single command either enable or disable auto-prompt by specifying <strong>command line option.</strong>
 
-//module.exports = app;
-module.exports.handler = serverless(app);
-[/sourcecode]
-
-- route directory のなかに`users.js`ファイルを作成
-
-[sourcecode language="text"]
-const AWS = require('aws-sdk');
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
-var express = require('express');
-var router = express.Router();
-
-router.get('/', function(req, res, next) {
-res.status(200).json({Welcome_msg:'Use create,read,update,delete routes to this Express API '});
-});
-
-router.post('/create', function(req, res, next) {
-
-const { id, firstName } = req.body;
-if (typeof id !== 'string') {
-res.status(400).json({ error: '"id" must be a string' });
-} else if (typeof firstName !== 'string') {
-res.status(400).json({ error: '"firstName" must be a string' });
-}
-
-const params = {
-TableName: 'Notes',
-Item: {
-"id": id,
-"firstName": firstName,
-},
-ReturnValues: 'ALL_OLD'
-};
-
-dynamoDb.put(params, (error,data) => {
-if (error) {
-console.log(error);
-res.status(400).json({ error:error });
-}else if(Object.keys(data).length === 0 && data.constructor === Object){
-res.status(200).json({Item:{id,firstName}})
-}
-else{
-res.status(400).json({Item:'Item already exist'});
-}
-});
-
-})
-
-router.post("/readUser", async function (req, res) {
-id=req.body.id
-res.redirect('/dev/users/readUser/' + id)
-})
-
-router.get("/read/:id", async function (req, res) {
-
-const params = {
-TableName: 'Notes',
-Key: {
-"id": req.params.id,
-}
-};
-
-try {
-dynamoDb.get(params, function (err, data) {
-if(err){
-res.status(400).json({ error: 'Could not read user' });
-}else if (Object.keys(data).length === 0 && data.constructor === Object) {
-
-        res.status(400).json({ error: 'Item does not exist' });
-      }
-      else {
-        res.status(200).json(data);
-      }
-
-})
-}
-
-catch (error) {
-console.log(error);
-res.status(500).json({ error: "Could not retreive user" });
-}
-});
-
-router.put('/update/:id', function(req, res, next) {
-
-const { id, firstName } = req.body;
-if (typeof id !== 'string') {
-res.status(400).json({ error: '"id" must be a string' });
-} else if (typeof firstName !== 'string') {
-res.status(400).json({ error: '"firstName" must be a string' });
-}
-
-const params = {
-TableName: 'Notes',
-Key: {
-"id": req.params.id
-},
-UpdateExpression: "set firstName = :y",
-ConditionExpression: "attribute_exists(id)",
-ExpressionAttributeValues:{
-":y":firstName
-},
-ReturnValues:"UPDATED_NEW"
-};
-
-dynamoDb.update(params, (error,data) => {
-if (error) {
-console.log(error);
-res.status(400).json({ error:"Item does not exist for updation" });
-}
-else {
-res.status(200).json(data);
-}
-
-});
-})
-
-router.delete('/delete/:id',function(req, res, next) {
-
-const params = {
-TableName: 'Notes',
-Key: {
-"id": req.params.id,
-},
-ConditionExpression: "attribute_exists(id)",
-ReturnValues: 'ALL_OLD'
-};
-
-dynamoDb.delete(params, function (error,data) {
-if (error) {
-console.log(error);
-res.status(400).json({ error:"Item does not exist for deletion" });
-}
-else {
-res.status(200).json(data);
-}
-});
-})
+  
+  
+     [sourcecode language="bash"]
+  
+     aws s3 ls --cli-auto-prompt  # to enable
+     aws dynamodb describe-table --table-name trialTable --no-cli-auto-prompt # to disable 
+   
+  
+     [/sourcecode]
 
-module.exports = router;
+- There are 2 modes of auto-prompt one is full which gives **full functionality**, another is **partial** which is for few commands or particularly use case would be pre-existing scripts or runbooks.
 
-[/sourcecode]
+## How It is used?
 
-プロジェクトの root で`serverless.yml`をつくります。
+- Whenever users start typing commands partially (even a single letter), auto-prompt automatically suggest based on what we type.
+- Suggestions can range from the name of `commands, parameters, resources` and their options and descriptions.
+- To select a suggestion all we need is to `use arrow keys and hit the ENTER key`.  
 
-- `serverless.yml`のコード
+## The scope and powers of auto-prompt
 
-[sourcecode language="text"]
-service: node-serverless-api
+This articles uses default method to enable aws. To start ```aws in auto prompt just type aws in terminal```. 
 
-# app and org for use with dashboard.serverless.com
+- **To show Documentation**
+   
+   Auto prompt will automatically show `documentation` on the fly as commands and their options changes. To toggle documentation **on/off use F3** ( either in the beginning or any point in time).
+ 
+ ![documentation](https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/07/Screenshot-2021-07-07-at-11.56.44-PM-scaled.jpg)  
+  
+ ![documentation-2](https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/07/Screenshot-2021-07-07-at-11.56.55-PM-scaled.jpg)
+  
 
-app: node-serverless-api
-org: jatinjmehrotra
+- **Completing commands automatically**
 
-# You can pin your service to only deploy with a specific Serverless version
+   auto-prompt `searches and suggest all the possible commands` which matches with a particular letter.
+   
+   - All commands starting with d
+   
+   ![d-commands](https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/07/Screenshot-2021-07-08-at-12.02.33-AM-scaled.jpg)
+   
+   - All commands having `data` within them
+   
+    ![d-commands](https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/07/Screenshot-2021-07-08-at-12.02.33-AM-scaled.jpg)
 
-# Check out our docs for more details
+- **Commands options, region, profile completion**
 
-frameworkVersion: "2"
+    After a command is typed, auto-prompt automatically suggest that particular commands options as well as their descriptions, not only this it automactically shows all regions for `region ` option and even `local profiles` configured for our aws cli.
+    
+    - commands options
+    
+    ![command options](https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/07/Screenshot-2021-07-08-at-12.04.49-AM-scaled.jpg)
+    
+    - region 
+    
+    ![region](https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/07/Screenshot_2021-07-08_at_12_09_01_AM-scaled.jpg)
+    
+    
+   - profile completion
+    
+    ![profile-completion](https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/07/Screenshot_2021-07-08_at_12_09_20_AM-scaled.jpg)
 
-provider:
-name: aws
-runtime: nodejs12.x
-lambdaHashingVersion: 20201221
-region: ap-southeast-1
-iam:
-role:
-statements: - Effect: Allow
-Action: - dynamodb:DescribeTable - dynamodb:Query - dynamodb:Scan - dynamodb:GetItem - dynamodb:PutItem - dynamodb:UpdateItem - dynamodb:DeleteItem
-Resource: arn:aws:dynamodb:ap-southeast-1:_:_
+- **Viewing history of commands**
 
-resources:
-Resources:
-NotesTable:
-Type: "AWS::DynamoDB::Table"
-Properties:
-AttributeDefinitions: - AttributeName: id
-AttributeType: S
-KeySchema: - AttributeName: id
-KeyType: HASH
-ProvisionedThroughput:
-ReadCapacityUnits: 1
-WriteCapacityUnits: 1
-TableName: "Notes"
+    auto-promp allows us to see histroy of previously used commands in this mode. To see `history` hit `CTRL + R`
 
-functions:
-hello:
-handler: app.handler
-events: - http:
-path: /user
-method: ANY - http:
-path: /user/{proxy+}
-method: ANY
+    ![history](https://cdn-ssl-devio-img.classmethod.jp/wp-content/uploads/2021/07/Screenshot_2021-07-08_at_12_13_51_AM-scaled.jpg)
 
-[/sourcecode]
+## Sum-up
 
-`serverless.yml`ファイルのなかに、Lambda で Dynamodb へアクセスするのための IAM Role のアクセス許可を作っています。
+This article shows how auto-prompt makes so `easy, productive, and super fast user experience in aws cli` with the ever-growing aws services. AWS CLI and its commands is **no more a mystery for anyone**. Check this for more [features of aws cli](https://aws.amazon.com/blogs/developer/aws-cli-v2-is-now-generally-available/).
 
-リソースブロックのなかには、`NotesTable`というなまえの DynamoDB テーブルをつくっています。
-
-そしてイベントブロックで、Lambda をトリガーするために Path をつくっています。
-
-**NOTE: DynamoDB テーブルの Attribute Name に Reserved Name をつかわないでください。Expression Attribute Name をつかってください**
-
-## Express API のデプロイとテスト
-
-Lambda のデプロイのためにこのコマンドをじっこうしてください。
-
-[sourcecode language="text"] sls deploy --aws-profile personal[/sourcecode]
-
-**NOTE: コマンドをじっこうしたあとで「profile is not configured error」というエラーメッセージがでたら、この[stackoverflow の post](https://stackoverflow.com/q/66560150/13126651)を check をしてください**
-
-コマンドのじっこうに成功したら API の Endpoint が得られます。
-
-API のテストのためには Curl コマンドをつかってください。もしくは、Postman をつかうこともできます。
-
-[sourcecode language="text"] curl -H "Content-Type: application/json" -X POST <https://3469t9kwr1.execute-api.ap-southeast-1.amazonaws.com/dev/user/create> -d '{"id":"1","firstName": "testuser"}'[/sourcecode]
-
-- GET
-
-[sourcecode language="text"] curl -H "Content-Type: application/json" -X GET <https://3469t9kwr1.execute-api.ap-southeast-1.amazonaws.com/dev/user/read/1[/sourcecode>]
-
-- PUT
-
-[sourcecode language="text"] curl -H "Content-Type: application/json" -X PUT <https://3469t9kwr1.execute-api.ap-southeast-1.amazonaws.com/dev/user/update/1> -d '{"id":"1","firstName": "test123"}'[/sourcecode]
-
-- DELETE
-
-[sourcecode language="text"]curl -H "Content-Type: application/json" -X DELETE <https://3469t9kwr1.execute-api.ap-southeast-1.amazonaws.com/dev/user/delete/1> [/sourcecode]
-
-つくった Infrastructure は削除しましょう。
-
-[sourcecode language="text"] sls remove--aws-profile personal[/sourcecode]
-
-## さいごに
-
-Serverless Framework を使用すれば REST API をデプロイするのがとてもかんたんになります。
-
-Serverless Framework はフレキシブルでいろいろなクラウドプロバイダーと統合できます。
-
-Serverless Framework のほかの例は[このリンク](https://www.serverless.com/examples/)をみてください
-
-それでは、**Happy Learning!**
+Till then, **Happy Learning!**
